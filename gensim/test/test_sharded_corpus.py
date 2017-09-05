@@ -3,12 +3,6 @@ Testing the test sharded corpus.
 """
 import os
 
-# For backwards compatibility with setUpClass and tearDownClass:
-# import sys
-# if sys.version_info[0] == 2 and sys.version_info[1] <= 6:
-#     import unittest2 as unittest
-# else:
-#     import unittest
 import unittest
 
 import random
@@ -24,9 +18,7 @@ from gensim.utils import mock_data, xrange
 #############################################################################
 
 
-
 class TestShardedCorpus(unittest.TestCase):
-
 
     # @classmethod
     # def setUpClass(cls):
@@ -79,7 +71,7 @@ class TestShardedCorpus(unittest.TestCase):
 
     def test_getitem(self):
 
-        _ = self.corpus[130]
+        _ = self.corpus[130]  # noqa:F841
         # Does retrieving the item load the correct shard?
         self.assertEqual(self.corpus.current_shard_n, 1)
 
@@ -89,13 +81,13 @@ class TestShardedCorpus(unittest.TestCase):
         self.assertEqual(self.corpus.current_shard_n, 2)
 
         for i in xrange(220, 227):
-            self.assertTrue(np.array_equal(self.corpus[i], item[i-220]))
+            self.assertTrue(np.array_equal(self.corpus[i], item[i - 220]))
 
     def test_sparse_serialization(self):
 
         no_exception = True
         try:
-            dataset = ShardedCorpus(self.tmp_fname, self.data, shardsize=100,
+            dataset = ShardedCorpus(self.tmp_fname, self.data, shardsize=100,  # noqa:F841
                                     dim=self.dim, sparse_serialization=True)
         except Exception:
             no_exception = False
@@ -242,7 +234,6 @@ class TestShardedCorpus(unittest.TestCase):
                                      i, j, str(ilist[i][j]), i, j,
                                      str(dslice[i][j])))
 
-
         iscorp, _ = is_corpus(ilist)
         self.assertTrue(iscorp, "Is the object returned by list notation "
                                 "a gensim corpus?")
@@ -262,6 +253,7 @@ class TestShardedCorpus(unittest.TestCase):
             self.assertTrue(os.path.isfile(fname))
 
 ##############################################################################
+
 
 if __name__ == '__main__':
     suite = unittest.TestSuite()

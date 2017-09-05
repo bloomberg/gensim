@@ -57,13 +57,11 @@ import numpy as np
 import scipy.linalg
 import scipy.sparse
 from scipy.sparse import sparsetools
-
-from gensim import interfaces, matutils, utils
-from gensim.models import basemodel
-
 from six import iterkeys
 from six.moves import xrange
 
+from gensim import interfaces, matutils, utils
+from gensim.models import basemodel
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +218,7 @@ class Projection(utils.SaveLoad):
                     self.u[:, i] *= -1.0
 #        diff = np.dot(self.u.T, self.u) - np.eye(self.u.shape[1])
 #        logger.info('orth error after=%f' % np.sum(diff * diff))
-#endclass Projection
+# endclass Projection
 
 
 class LsiModel(interfaces.TransformationABC, basemodel.BaseTopicModel):
@@ -244,6 +242,7 @@ class LsiModel(interfaces.TransformationABC, basemodel.BaseTopicModel):
     .. [2] https://github.com/piskvorky/gensim/wiki/Recipes-&-FAQ#q4-how-do-you-output-the-u-s-vt-matrices-of-lsi
 
     """
+
     def __init__(self, corpus=None, num_topics=200, id2word=None, chunksize=20000,
                  decay=1.0, distributed=False, onepass=True,
                  power_iters=P2_EXTRA_ITERS, extra_samples=P2_EXTRA_DIMS):
@@ -329,7 +328,6 @@ class LsiModel(interfaces.TransformationABC, basemodel.BaseTopicModel):
 
         if corpus is not None:
             self.add_documents(corpus)
-
 
     def add_documents(self, corpus, chunksize=None, decay=None):
         """
@@ -470,6 +468,26 @@ class LsiModel(interfaces.TransformationABC, basemodel.BaseTopicModel):
             result = matutils.Dense2Corpus(topic_dist)
         return result
 
+    def get_topics(self):
+        """
+        Returns:
+            np.ndarray: `num_topics` x `vocabulary_size` array of floats which represents
+            the term topic matrix learned during inference.
+
+        Note:
+            The number of topics can actually be smaller than `self.num_topics`,
+            if there were not enough factors (real rank of input matrix smaller than
+            `self.num_topics`).
+        """
+        projections = self.projection.u.T
+        num_topics = len(projections)
+        topics = []
+        for i in range(num_topics):
+            c = np.asarray(projections[i, :]).flatten()
+            norm = np.sqrt(np.sum(np.dot(c, c)))
+            topics.append(1.0 * c / norm)
+        return np.array(topics)
+
     def show_topic(self, topicno, topn=10):
         """
         Return a specified topic (=left singular vector), 0 <= `topicno` < `self.num_topics`,
@@ -563,7 +581,7 @@ class LsiModel(interfaces.TransformationABC, basemodel.BaseTopicModel):
         except Exception as e:
             logging.warning("failed to load projection from %s: %s" % (projection_fname, e))
         return result
-#endclass LsiModel
+# endclass LsiModel
 
 
 def print_debug(id2token, u, s, topics, num_words=10, num_neg=None):
