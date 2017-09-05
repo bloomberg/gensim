@@ -8,22 +8,23 @@
 Automated tests for checking transformation algorithms (the models package).
 """
 
-import six
 import numpy as np
+import six
+
 
 class TestBaseTopicModel(object):
     def testPrintTopic(self):
         topics = self.model.show_topics(formatted=True)
         for topic_no, topic in topics:
             self.assertTrue(isinstance(topic_no, int))
-            self.assertTrue(isinstance(topic, str) or isinstance(topic, unicode))
+            self.assertTrue(isinstance(topic, str) or isinstance(topic, unicode))  # noqa:F821
 
     def testPrintTopics(self):
         topics = self.model.print_topics()
 
         for topic_no, topic in topics:
             self.assertTrue(isinstance(topic_no, int))
-            self.assertTrue(isinstance(topic, str) or isinstance(topic, unicode))
+            self.assertTrue(isinstance(topic, str) or isinstance(topic, unicode))  # noqa:F821
 
     def testShowTopic(self):
         topic = self.model.show_topic(1)
@@ -41,3 +42,12 @@ class TestBaseTopicModel(object):
             for k, v in topic:
                 self.assertTrue(isinstance(k, six.string_types))
                 self.assertTrue(isinstance(v, (np.floating, float)))
+
+    def testGetTopics(self):
+        topics = self.model.get_topics()
+        vocab_size = len(self.model.id2word)
+        for topic in topics:
+            self.assertTrue(isinstance(topic, np.ndarray))
+            self.assertEqual(topic.dtype, np.float64)
+            self.assertEqual(vocab_size, topic.shape[0])
+            self.assertAlmostEqual(np.sum(topic), 1.0, 5)

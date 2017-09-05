@@ -17,7 +17,7 @@ from collections import Counter
 
 import numpy as np
 import scipy.sparse as sps
-from six import viewitems, string_types
+from six import iteritems, string_types
 
 from gensim import utils
 
@@ -29,9 +29,8 @@ def _ids_to_words(ids, dictionary):
     This function abstracts away the differences between the HashDictionary and the standard one.
 
     Args:
-    ----
-    ids: list of list of tuples, where each tuple contains (token_id, iterable of token_ids).
-         This is the format returned by the topic_coherence.segmentation functions.
+        ids: list of list of tuples, where each tuple contains (token_id, iterable of token_ids).
+            This is the format returned by the topic_coherence.segmentation functions.
     """
     if not dictionary.id2token:  # may not be initialized in the standard gensim.corpora.Dictionary
         setattr(dictionary, 'id2token', {v: k for k, v in dictionary.token2id.items()})
@@ -143,7 +142,7 @@ class InvertedIndexBased(BaseAnalyzer):
         return len(s1.intersection(s2))
 
     def index_to_dict(self):
-        contiguous2id = {n: word_id for word_id, n in viewitems(self.id2contiguous)}
+        contiguous2id = {n: word_id for word_id, n in iteritems(self.id2contiguous)}
         return {contiguous2id[n]: doc_id_set for n, doc_id_set in enumerate(self._inverted_index)}
 
 
@@ -169,9 +168,8 @@ class WindowedTextsAnalyzer(UsesDictionary):
     def __init__(self, relevant_ids, dictionary):
         """
         Args:
-        ----
-        relevant_ids: the set of words that occurrences should be accumulated for.
-        dictionary: Dictionary instance with mappings for the relevant_ids.
+            relevant_ids: the set of words that occurrences should be accumulated for.
+            dictionary: Dictionary instance with mappings for the relevant_ids.
         """
         super(WindowedTextsAnalyzer, self).__init__(relevant_ids, dictionary)
         self._none_token = self._vocab_size  # see _iter_texts for use of none token
@@ -243,7 +241,7 @@ class WordOccurrenceAccumulator(WindowedTextsAnalyzer):
         self._counter.clear()
 
         super(WordOccurrenceAccumulator, self).accumulate(texts, window_size)
-        for combo, count in viewitems(self._counter):
+        for combo, count in iteritems(self._counter):
             self._co_occurrences[combo] += count
 
         return self
@@ -302,11 +300,10 @@ class ParallelWordOccurrenceAccumulator(WindowedTextsAnalyzer):
     def __init__(self, processes, *args, **kwargs):
         """
         Args:
-        ----
-        processes : number of processes to use; must be at least two.
-        args : should include `relevant_ids` and `dictionary` (see `UsesDictionary.__init__`).
-        kwargs : can include `batch_size`, which is the number of docs to send to a worker at a
-                 time. If not included, it defaults to 64.
+            processes : number of processes to use; must be at least two.
+            args : should include `relevant_ids` and `dictionary` (see `UsesDictionary.__init__`).
+            kwargs : can include `batch_size`, which is the number of docs to send to a worker at a
+                time. If not included, it defaults to 64.
         """
         super(ParallelWordOccurrenceAccumulator, self).__init__(*args)
         if processes < 2:
@@ -441,7 +438,7 @@ class AccumulatingWorker(mp.Process):
             logger.info(
                 "%s interrupted after processing %d documents",
                 self.__class__.__name__, self.accumulator.num_docs)
-        except:
+        except Exception:
             logger.exception("worker encountered unexpected exception")
         finally:
             self.reply_to_master()

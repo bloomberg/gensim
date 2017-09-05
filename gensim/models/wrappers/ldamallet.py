@@ -21,8 +21,8 @@ The wrapped model can NOT be updated with new documents for online training -- u
 
 Example:
 
->>> model = gensim.models.wrappers.LdaMallet('/Users/kofola/mallet-2.0.7/bin/mallet', corpus=my_corpus, num_topics=20, id2word=dictionary)
->>> print model[my_vector]  # print LDA topics of a document
+    >>> model = gensim.models.wrappers.LdaMallet('/Users/kofola/mallet-2.0.7/bin/mallet', corpus=my_corpus, num_topics=20, id2word=dictionary)
+    >>> print model[my_vector]  # print LDA topics of a document
 
 .. [1] http://mallet.cs.umass.edu/
 
@@ -30,22 +30,19 @@ Example:
 
 
 import logging
+import os
 import random
 import tempfile
-import os
-
-import numpy
-
 import xml.etree.ElementTree as et
 import zipfile
 
-from six import iteritems
+import numpy
 from smart_open import smart_open
 
 from gensim import utils, matutils
-from gensim.utils import check_output, revdict
-from gensim.models.ldamodel import LdaModel
 from gensim.models import basemodel
+from gensim.models.ldamodel import LdaModel
+from gensim.utils import check_output, revdict
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +53,7 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
     takes place by passing around data files on disk and calling Java with subprocess.call().
 
     """
+
     def __init__(self, mallet_path, corpus=None, num_topics=100, alpha=50, id2word=None, workers=4, prefix=None,
                  optimize_interval=0, iterations=1000, topic_threshold=0.0):
         """
@@ -87,7 +85,7 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
         if self.num_terms == 0:
             raise ValueError("cannot compute LDA over an empty collection (no terms)")
         self.num_topics = num_topics
-        self.topic_threshold=topic_threshold
+        self.topic_threshold = topic_threshold
         self.alpha = alpha
         if prefix is None:
             rand_prefix = hex(random.randint(0, 0xffffff))[2:] + '_'
@@ -186,7 +184,7 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
 
     def load_word_topics(self):
         logger.info("loading assigned topics from %s", self.fstate())
-        word_topics = numpy.zeros((self.num_topics, self.num_terms), dtype=numpy.float32)
+        word_topics = numpy.zeros((self.num_topics, self.num_terms), dtype=numpy.float64)
         if hasattr(self.id2word, 'token2id'):
             word2id = self.id2word.token2id
         else:
@@ -196,7 +194,7 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
             _ = next(fin)  # header
             self.alpha = numpy.array([float(val) for val in next(fin).split()[2:]])
             assert len(self.alpha) == self.num_topics, "mismatch between MALLET vs. requested topics"
-            _ = next(fin)  # beta
+            _ = next(fin)  # noqa:F841 beta
             for lineno, line in enumerate(fin):
                 line = utils.to_unicode(line)
                 doc, source, pos, typeindex, token, topic = line.split(" ")
@@ -208,10 +206,20 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
 
     def load_document_topics(self):
         """
-        Return an iterator over the topic distribution of training corpus, by reading
-        the doctopics.txt generated during training.
+        Returns:
+            An iterator over the topic distribution of training corpus, by reading
+            the doctopics.txt generated during training.
         """
         return self.read_doctopics(self.fdoctopics())
+
+    def get_topics(self):
+        """
+        Returns:
+            np.ndarray: `num_topics` x `vocabulary_size` array of floats which represents
+            the term topic matrix learned during inference.
+        """
+        topics = self.word_topics
+        return topics / topics.sum(axis=1)[:, None]
 
     def show_topics(self, num_topics=10, num_words=10, log=False, formatted=True):
         """
@@ -226,9 +234,9 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
             chosen_topics = range(num_topics)
         else:
             num_topics = min(num_topics, self.num_topics)
-            sort_alpha = self.alpha + 0.0001 * numpy.random.rand(len(self.alpha)) # add a little random jitter, to randomize results around the same alpha
+            sort_alpha = self.alpha + 0.0001 * numpy.random.rand(len(self.alpha))  # add a little random jitter, to randomize results around the same alpha
             sorted_topics = list(matutils.argsort(sort_alpha))
-            chosen_topics = sorted_topics[:num_topics//2] + sorted_topics[-num_topics//2 : ]
+            chosen_topics = sorted_topics[: num_topics // 2] + sorted_topics[-num_topics // 2:]
         shown = []
         for i in chosen_topics:
             if formatted:
@@ -280,8 +288,6 @@ class LdaMallet(utils.SaveLoad, basemodel.BaseTopicModel):
                 return doc.find(namespace + 'version').text.split("-")[0]
             except Exception:
                 return "Can't parse pom.xml version file"
-
-
 
     def read_doctopics(self, fname, eps=1e-6, renorm=True):
         """
@@ -359,14 +365,12 @@ def malletmodel2ldamodel(mallet_model, gamma_threshold=0.001, iterations=50):
     gensim model.
 
     Args:
-    ----
-    mallet_model : Trained mallet model
-    gamma_threshold : To be used for inference in the new LdaModel.
-    iterations : number of iterations to be used for inference in the new LdaModel.
+        mallet_model : Trained mallet model
+        gamma_threshold : To be used for inference in the new LdaModel.
+        iterations : number of iterations to be used for inference in the new LdaModel.
 
     Returns:
-    -------
-    model_gensim : LdaModel instance; copied gensim LdaModel
+        model_gensim : LdaModel instance; copied gensim LdaModel
     """
     model_gensim = LdaModel(
         id2word=mallet_model.id2word, num_topics=mallet_model.num_topics,

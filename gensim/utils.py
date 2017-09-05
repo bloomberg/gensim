@@ -13,8 +13,6 @@ from __future__ import with_statement
 import logging
 import warnings
 
-logger = logging.getLogger(__name__)
-
 try:
     from html.entities import name2codepoint as n2cp
 except ImportError:
@@ -41,11 +39,13 @@ import numpy as np
 import numbers
 import scipy.sparse
 
+from six import iterkeys, iteritems, u, string_types, unichr
+from six.moves import xrange
+
 if sys.version_info[0] >= 3:
     unicode = str
 
-from six import iterkeys, iteritems, u, string_types, unichr
-from six.moves import xrange
+logger = logging.getLogger(__name__)
 
 try:
     from smart_open import smart_open
@@ -129,6 +129,8 @@ class NoCM(object):
 
     def __exit__(self, type, value, traceback):
         pass
+
+
 nocm = NoCM()
 
 
@@ -179,7 +181,8 @@ def copytree_hardlink(source, dest):
         shutil.copy2 = copy2
 
 
-def tokenize(text, lowercase=False, deacc=False, errors="strict", to_lower=False, lower=False):
+def tokenize(text, lowercase=False, deacc=False, encoding='utf8', errors="strict", to_lower=False,
+             lower=False):
     """
     Iteratively yield tokens as unicode strings, removing accent marks
     and optionally lowercasing the unidoce string by assigning True
@@ -195,11 +198,15 @@ def tokenize(text, lowercase=False, deacc=False, errors="strict", to_lower=False
 
     """
     lowercase = lowercase or to_lower or lower
-    text = to_unicode(text, errors=errors)
+    text = to_unicode(text, encoding, errors=errors)
     if lowercase:
         text = text.lower()
     if deacc:
         text = deaccent(text)
+    return simple_tokenize(text)
+
+
+def simple_tokenize(text):
     for match in PAT_ALPHABETIC.finditer(text):
         yield match.group()
 
@@ -225,6 +232,8 @@ def any2utf8(text, errors='strict', encoding='utf8'):
         return text.encode('utf8')
     # do bytestring -> unicode -> utf8 full circle, to ensure valid utf8
     return unicode(text, encoding, errors=errors).encode('utf8')
+
+
 to_utf8 = any2utf8
 
 
@@ -233,6 +242,8 @@ def any2unicode(text, encoding='utf8', errors='strict'):
     if isinstance(text, unicode):
         return text
     return unicode(text, encoding, errors=errors)
+
+
 to_unicode = any2unicode
 
 
@@ -457,7 +468,7 @@ class SaveLoad(object):
             self.__dict__['__scipys'] = scipys
             self.__dict__['__ignoreds'] = ignoreds
             self.__dict__['__recursive_saveloads'] = recursive_saveloads
-        except:
+        except Exception:
             # restore the attributes if exception-interrupted
             for attrib, val in iteritems(asides):
                 setattr(self, attrib, val)
@@ -497,7 +508,7 @@ class SaveLoad(object):
         except TypeError:  # `fname_or_handle` does not have write attribute
             self._smart_save(fname_or_handle, separately, sep_limit, ignore,
                              pickle_protocol=pickle_protocol)
-#endclass SaveLoad
+# endclass SaveLoad
 
 
 def identity(p):
@@ -527,6 +538,7 @@ class FakeDict(object):
     is a waste of memory.
 
     """
+
     def __init__(self, num_terms):
         self.num_terms = num_terms
 
@@ -594,7 +606,7 @@ def is_corpus(obj):
     try:
         if 'Corpus' in obj.__class__.__name__:  # the most common case, quick hack
             return True, obj
-    except:
+    except Exception:
         pass
     try:
         if hasattr(obj, 'next') or hasattr(obj, '__next__'):
@@ -632,14 +644,14 @@ def get_my_ip():
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect((ns._pyroUri.host, ns._pyroUri.port))
         result, port = s.getsockname()
-    except:
+    except Exception:
         try:
             # see what ifconfig says about our default interface
             import commands
             result = commands.getoutput("ifconfig").split("\n")[1].split()[1][5:]
             if len(result.split('.')) != 4:
                 raise Exception()
-        except:
+        except Exception:
             # give up, leave the resolution to gethostbyname
             result = socket.gethostbyname(socket.gethostname())
     return result
@@ -650,6 +662,7 @@ class RepeatCorpus(SaveLoad):
     Used in the tutorial on distributed computing and likely not useful anywhere else.
 
     """
+
     def __init__(self, corpus, reps):
         """
         Wrap a `corpus` as another corpus of length `reps`. This is achieved by
@@ -789,7 +802,7 @@ def decode_htmlentities(text):
                     return safe_unichr(cp)
                 else:
                     return match.group()
-        except:
+        except Exception:
             # in case of errors, return original input
             return match.group()
 
@@ -817,6 +830,7 @@ def chunkize_serial(iterable, chunksize, as_numpy=False):
             break
         # memory opt: wrap the chunk and then pop(), to avoid leaving behind a dangling reference
         yield wrapped_chunk.pop()
+
 
 grouper = chunkize_serial
 
@@ -853,7 +867,7 @@ class InputQueue(multiprocessing.Process):
             logger.debug("prepared another chunk of %i documents (qsize=%s)" %
                         (len(wrapped_chunk[0]), qsize))
             self.q.put(wrapped_chunk.pop(), block=True)
-#endclass InputQueue
+# endclass InputQueue
 
 
 if os.name == 'nt':
@@ -1006,15 +1020,18 @@ def getNS(host=None, port=None, broadcast=True, hmac_key=None):
         raise RuntimeError("Pyro name server not found")
 
 
-def pyro_daemon(name, obj, random_suffix=False, ip=None, port=None, ns_conf={}):
+def pyro_daemon(name, obj, random_suffix=False, ip=None, port=None, ns_conf=None):
     """
     Register object with name server (starting the name server if not running
     yet) and block until the daemon is terminated. The object is registered under
     `name`, or `name`+ some random suffix if `random_suffix` is set.
 
     """
+    if ns_conf is None:
+        ns_conf = {}
     if random_suffix:
         name += '.' + hex(random.randint(0, 0xffffff))[2:]
+
     import Pyro4
     with getNS(**ns_conf) as ns:
         with Pyro4.Daemon(ip or get_my_ip(), port or 0) as daemon:
@@ -1031,7 +1048,7 @@ def has_pattern():
     Function which returns a flag indicating whether pattern is installed or not
     """
     try:
-        from pattern.en import parse
+        from pattern.en import parse  # noqa:F401
         return True
     except ImportError:
         return False
@@ -1134,6 +1151,7 @@ def qsize(queue):
         # OS X doesn't support qsize
         return -1
 
+
 RULE_DEFAULT = 0
 RULE_DISCARD = 1
 RULE_KEEP = 2
@@ -1209,13 +1227,13 @@ def strided_windows(ndarray, window_size):
            [5, 6, 7, 8, 9]])
 
     Args:
-    ----
-    ndarray: either a numpy.ndarray or something that can be converted into one.
-    window_size: sliding window size.
-    :param window_size:
-    :return: numpy.ndarray of the subsequences produced by sliding a window of the given size over
-             the `ndarray`. Since this uses striding, the individual arrays are views rather than
-             copies of `ndarray`. Changes to one view modifies the others and the original.
+        ndarray: either a numpy.ndarray or something that can be converted into one.
+        window_size: sliding window size.
+
+    Returns:
+        numpy.ndarray of the subsequences produced by sliding a window of the given size over
+        the `ndarray`. Since this uses striding, the individual arrays are views rather than
+        copies of `ndarray`. Changes to one view modifies the others and the original.
     """
     ndarray = np.asarray(ndarray)
     if window_size == ndarray.shape[0]:
@@ -1235,12 +1253,11 @@ def iter_windows(texts, window_size, copy=False, ignore_below_size=True, include
     instead, pass `copy=True`.
 
     Args:
-    ----
-    texts: List of string sentences.
-    window_size: Size of sliding window.
-    copy: False to use views of the texts (default) or True to produce deep copies.
-    ignore_below_size: ignore documents that are not at least `window_size` in length (default behavior).
-                       If False, the documents below `window_size` will be yielded as the full document.
+        texts: List of string sentences.
+        window_size: Size of sliding window.
+        copy: False to use views of the texts (default) or True to produce deep copies.
+        ignore_below_size: ignore documents that are not at least `window_size` in length (default behavior).
+            If False, the documents below `window_size` will be yielded as the full document.
 
     """
     for doc_num, document in enumerate(texts):

@@ -9,13 +9,13 @@ Module for calculating topic coherence in python. This is the implementation of
 the four stage topic coherence pipeline from the paper [1]_.
 The four stage pipeline is basically:
 
-Segmentation -> Probability Estimation -> Confirmation Measure -> Aggregation.
+    Segmentation -> Probability Estimation -> Confirmation Measure -> Aggregation.
 
 Implementation of this pipeline allows for the user to in essence "make" a
 coherence measure of his/her choice by choosing a method in each of the pipelines.
 
 .. [1] Michael Roeder, Andreas Both and Alexander Hinneburg. Exploring the space of topic
-coherence measures. http://svn.aksw.org/papers/2015/WSDM_Topic_Evaluation/public.pdf.
+  coherence measures. http://svn.aksw.org/papers/2015/WSDM_Topic_Evaluation/public.pdf.
 """
 
 import logging
@@ -26,8 +26,6 @@ import numpy as np
 
 from gensim import interfaces
 from gensim.matutils import argsort
-from gensim.models.ldamodel import LdaModel
-from gensim.models.wrappers import LdaVowpalWabbit, LdaMallet
 from gensim.topic_coherence import (segmentation, probability_estimation,
                                     direct_confirmation_measure, indirect_confirmation_measure,
                                     aggregation)
@@ -110,44 +108,52 @@ class CoherenceModel(interfaces.TransformationABC):
 
     Model persistency is achieved via its load/save methods.
     """
+
     def __init__(self, model=None, topics=None, texts=None, corpus=None, dictionary=None,
                  window_size=None, coherence='c_v', topn=10, processes=-1):
         """
         Args:
-        ----
-        model : Pre-trained topic model. Should be provided if topics is not provided.
+            model : Pre-trained topic model. Should be provided if topics is not provided.
                 Currently supports LdaModel, LdaMallet wrapper and LdaVowpalWabbit wrapper. Use 'topics'
                 parameter to plug in an as yet unsupported model.
-        topics : List of tokenized topics. If this is preferred over model, dictionary should be provided. eg::
-                 topics = [['human', 'machine', 'computer', 'interface'],
+            topics : List of tokenized topics. If this is preferred over model, dictionary should be provided.
+                eg::
+
+                    topics = [['human', 'machine', 'computer', 'interface'],
                                ['graph', 'trees', 'binary', 'widths']]
-        texts : Tokenized texts. Needed for coherence models that use sliding window based probability estimator, eg::
-                texts = [['system', 'human', 'system', 'eps'],
+
+            texts : Tokenized texts. Needed for coherence models that use sliding window based probability estimator,
+                eg::
+
+                    texts = [['system', 'human', 'system', 'eps'],
                              ['user', 'response', 'time'],
                              ['trees'],
                              ['graph', 'trees'],
                              ['graph', 'minors', 'trees'],
                              ['graph', 'minors', 'survey']]
-        corpus : Gensim document corpus.
-        dictionary : Gensim dictionary mapping of id word to create corpus. If model.id2word is present,
-                     this is not needed. If both are provided, dictionary will be used.
-        window_size : Is the size of the window to be used for coherence measures using boolean sliding window as their
-                      probability estimator. For 'u_mass' this doesn't matter.
-                      If left 'None' the default window sizes are used which are:
-                      'c_v' : 110
-                      'c_uci' : 10
-                      'c_npmi' : 10
-        coherence : Coherence measure to be used. Supported values are:
-                    'u_mass'
-                    'c_v'
-                    'c_uci' also popularly known as c_pmi
-                    'c_npmi'
-                    For 'u_mass' corpus should be provided. If texts is provided, it will be converted
-                    to corpus using the dictionary. For 'c_v', 'c_uci' and 'c_npmi' texts should be provided.
-                    Corpus is not needed.
-        topn : Integer corresponding to the number of top words to be extracted from each topic.
-        processes : number of processes to use for probability estimation phase; any value less than 1 will be
-                    interpreted to mean num_cpus - 1; default is -1.
+
+            corpus : Gensim document corpus.
+            dictionary : Gensim dictionary mapping of id word to create corpus. If model.id2word is present,
+                this is not needed. If both are provided, dictionary will be used.
+            window_size : Is the size of the window to be used for coherence measures using boolean sliding window as their
+                probability estimator. For 'u_mass' this doesn't matter.
+                If left 'None' the default window sizes are used which are:
+
+                    'c_v' : 110
+                    'c_uci' : 10
+                    'c_npmi' : 10
+
+            coherence : Coherence measure to be used. Supported values are:
+                'u_mass'
+                'c_v'
+                'c_uci' also popularly known as c_pmi
+                'c_npmi'
+                For 'u_mass' corpus should be provided. If texts is provided, it will be converted
+                to corpus using the dictionary. For 'c_v', 'c_uci' and 'c_npmi' texts should be provided.
+                Corpus is not needed.
+            topn : Integer corresponding to the number of top words to be extracted from each topic.
+            processes : number of processes to use for probability estimation phase; any value less than 1 will be
+                interpreted to mean num_cpus - 1; default is -1.
         """
         if model is None and topics is None:
             raise ValueError("One of model or topics has to be provided.")
@@ -261,23 +267,15 @@ class CoherenceModel(interfaces.TransformationABC):
 
     def _get_topics(self):
         """Internal helper function to return topics from a trained topic model."""
-        topics = []
-        if isinstance(self.model, LdaModel):
-            for topic in self.model.state.get_lambda():
-                bestn = argsort(topic, topn=self.topn, reverse=True)
-                topics.append(bestn)
-        elif isinstance(self.model, LdaVowpalWabbit):
-            for topic in self.model._get_topics():
-                bestn = argsort(topic, topn=self.topn, reverse=True)
-                topics.append(bestn)
-        elif isinstance(self.model, LdaMallet):
-            for topic in self.model.word_topics:
-                bestn = argsort(topic, topn=self.topn, reverse=True)
-                topics.append(bestn)
-        else:
-            raise ValueError("This topic model is not currently supported. Supported topic models "
-                             " are LdaModel, LdaVowpalWabbit and LdaMallet.")
-        return topics
+        try:
+            return [
+                argsort(topic, topn=self.topn, reverse=True) for topic in
+                self.model.get_topics()
+            ]
+        except AttributeError:
+            raise ValueError(
+                "This topic model is not currently supported. Supported topic models"
+                " should implement the `get_topics` method.")
 
     def segment_topics(self):
         return self.measure.seg(self.topics)

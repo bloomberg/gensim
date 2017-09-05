@@ -10,20 +10,18 @@ Automated tests for checking transformation algorithms (the models package).
 
 
 import logging
-import unittest
 import os
 import os.path
 import tempfile
+import unittest
 
-import six
 import numpy as np
 import scipy.linalg
 
+from gensim import matutils
 from gensim.corpora import mmcorpus, Dictionary
 from gensim.models import lsimodel
-from gensim import matutils
 from gensim.test import basetests
-
 
 module_path = os.path.dirname(__file__)  # needed because sample data files are located in the same folder
 
@@ -78,11 +76,11 @@ class TestLsiModel(unittest.TestCase, basetests.TestBaseTopicModel):
         model = self.model
         got = np.vstack(matutils.sparse2full(doc, 2) for doc in model[self.corpus])
         expected = np.array([
-            [0.65946639,  0.14211544],
+            [0.65946639, 0.14211544],
             [2.02454305, -0.42088759],
-            [1.54655361,  0.32358921],
-            [1.81114125,  0.5890525 ],
-            [0.9336738 , -0.27138939],
+            [1.54655361, 0.32358921],
+            [1.81114125, 0.5890525],
+            [0.9336738, -0.27138939],
             [0.01274618, -0.49016181],
             [0.04888203, -1.11294699],
             [0.08063836, -1.56345594],
@@ -179,6 +177,16 @@ class TestLsiModel(unittest.TestCase, basetests.TestBaseTopicModel):
     def testDocsProcessed(self):
         self.assertEqual(self.model.docs_processed, 9)
         self.assertEqual(self.model.docs_processed, self.corpus.num_docs)
+
+    def testGetTopics(self):
+        topics = self.model.get_topics()
+        vocab_size = len(self.model.id2word)
+        for topic in topics:
+            self.assertTrue(isinstance(topic, np.ndarray))
+            self.assertEqual(topic.dtype, np.float64)
+            self.assertEqual(vocab_size, topic.shape[0])
+            # LSI topics are not probability distributions
+            # self.assertAlmostEqual(np.sum(topic), 1.0, 5)
 
 # endclass TestLsiModel
 

@@ -6,7 +6,8 @@
 # Licensed under the GNU LGPL v2.1 - http://www.gnu.org/licenses/lgpl.html
 
 """
-USAGE: $ python -m gensim.scripts.glove2word2vec --input <GloVe vector file> --output <Word2vec vector file>
+USAGE:
+    $ python -m gensim.scripts.glove2word2vec --input <GloVe vector file> --output <Word2vec vector file>
 Where:
     <GloVe vector file>: Input GloVe .txt file
     <Word2vec vector file>: Desired name of output Word2vec .txt file
@@ -18,11 +19,9 @@ which contains the number of vectors and their dimensionality (two integers).
 
 import os
 import sys
-import random
 import logging
 import argparse
 
-import gensim
 from smart_open import smart_open
 
 logger = logging.getLogger(__name__)
@@ -38,7 +37,7 @@ def get_glove_info(glove_file_name):
 
 
 def glove2word2vec(glove_input_file, word2vec_output_file):
-    """Convert `glove_input_file` in GloVe format into `word2vec_output_file in word2vec format."""
+    """Convert `glove_input_file` in GloVe format into `word2vec_output_file` in word2vec format."""
     num_lines, num_dims = get_glove_info(glove_input_file)
     logger.info("converting %i vectors from %s to %s", num_lines, glove_input_file, word2vec_output_file)
     with smart_open(word2vec_output_file, 'wb') as fout:
@@ -72,4 +71,3 @@ if __name__ == "__main__":
     # do the actual conversion
     num_lines, num_dims = glove2word2vec(args.input, args.output)
     logger.info('Converted model with %i vectors and %i dimensions', num_lines, num_dims)
-    
